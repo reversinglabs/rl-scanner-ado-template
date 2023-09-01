@@ -1,0 +1,110 @@
+parameters:
+- name: BUILD_PATH
+  default: '.'
+
+- name: REPORT_PATH
+  default: 'report'
+
+- name: MY_ARTIFACT_TO_SCAN
+  default: ''
+
+- name: RLSECURE_ENCODED_LICENSE
+  default: ''
+
+- name: RLSECURE_SITE_KEY
+  default: ''
+
+- name: WITH_UPLOAD
+  type: boolean
+  default: true
+
+- name: VERBOSE
+  type: boolean
+  default: false
+
+steps:
+# <<< scan with rl-scanner >>>
+- bash: |
+    mkdir -p "$(REPORT_PATH)" 
+
+    if [ "${VERBOSE}" == "true" ]
+    then
+      echo "REPORT_PATH: $REPORT_PATH"
+      ls -l $REPORT_PATH
+
+      echo "BUILD_PATH: $BUILD_PATH"
+      ls -l $BUILD_PATH
+
+      echo "MY_ARTIFACT_TO_SCAN: $MY_ARTIFACT_TO_SCAN"
+      ls -l $MY_ARTIFACT_TO_SCAN
+    fi
+
+    {
+      set +e # we will handle errors ourselves for this block
+    
+      docker run --pull always --rm \
+        -u $(id -u):$(id -g) \
+        -e RLSECURE_ENCODED_LICENSE="$(RLSECURE_ENCODED_LICENSE)" \
+        -e RLSECURE_SITE_KEY="$(RLSECURE_SITE_KEY)" \
+        -v "$(BUILD_PATH):/packages:ro" \
+        -v "./$(REPORT_PATH):/report" \
+        reversinglabs/rl-scanner \
+          rl-scan \
+            --replace \
+            --package-path=/packages/"$(MY_ARTIFACT_TO_SCAN)" \
+            --report-path=/report \
+            --report-format=all >1 2>2
+      RR=$?
+    
+      set -e
+    }
+
+    ZZ=$( grep 'Scan result:' 1 ) # get the PASS/FAIL string
+
+    if [ "${VERBOSE}" == "true" ]
+    then
+      echo "##################################"
+      echo "StdOut is:"
+      cat 1
+
+      echo "##################################"
+      echo "StdErr is:"
+      cat 2
+    
+      echo "##################################"
+      echo "Scan result is: $ZZ"
+    fi
+
+    # using the scan result text as explicit feedback message
+    if [ "${RR}" != "0" ] 
+    then
+      echo "##vso[task.logissue type=error;]$ZZ; exit code: $RR"
+      echo "##vso[task.complete result=Failed;]"
+    else
+      echo "##vso[task.complete result=Succeeded;]"
+    fi
+
+  displayName: 'Run rl-scanner in Docker'
+
+# <<< always publish reports >>> 
+- publish: $(System.DefaultWorkingDirectory)/$(REPORT_PATH)/report.cyclonedx.json
+  condition: and(succeededOrFailed(),eq(${{parameters.WITH_UPLOAD}},'true'))
+  displayName: 'Publish CycloneDX'
+  artifact: 'CycloneDX-SBOM'  
+  
+- publish: $(System.DefaultWorkingDirectory)/$(REPORT_PATH)/report.spdx.json
+  condition: and(succeededOrFailed(),eq(${{parameters.WITH_UPLOAD}},'true'))
+  displayName: 'Publish SPDX'
+  artifact: 'SPDX-SBOM' 
+
+- publish: $(System.DefaultWorkingDirectory)/$(REPORT_PATH)/report.rl.json
+  condition: and(succeededOrFailed(),eq(${{parameters.WITH_UPLOAD}},'true'))
+  displayName: 'Publish rl-json'  
+  artifact: 'ReversingLabs-JSONreport'
+
+- task: PublishBuildArtifacts@1
+  condition: and(succeededOrFailed(),eq(${{parameters.WITH_UPLOAD}},'true'))
+  inputs:
+    PathtoPublish: $(System.DefaultWorkingDirectory)/$(REPORT_PATH)/rl-html
+    ArtifactName: 'ReversingLabs-HTMLreport'
+    StoreAsTar: true

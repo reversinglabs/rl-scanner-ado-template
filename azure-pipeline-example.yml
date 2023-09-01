@@ -1,0 +1,52 @@
+# A very simplistic example showing the steps: build, scan, deploy.
+# The scan step is using the template: rl-secure-scan-ado.yml with parameters.
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- group: rl-scanner
+  # variables from this group contain rl-secure license information:
+  # - RLSECURE_ENCODED_LICENSE
+  # - RLSECURE_SITE_KEY
+  # they are defined via:
+  # - https://dev.azure.com/<your organisation>/<your project>/_library?itemType=VariableGroups
+  # consult the docs for more information:
+  # - https://learn.microsoft.com/en-us/azure/devops/pipelines/library/variable-groups?view=azure-devops&tabs=yaml
+
+- name: BUILD_PATH
+  value: '.' # use the current directory as the location where the artifact is located.
+
+- name: REPORT_PATH
+  value: report # use report as the directory where the reports will be created by rl-scanner and where the upload will take place.
+
+- name: MY_ARTIFACT_TO_SCAN # the file name of the build artifact that will be scanned
+  value README.md           # will trigger the deploy step.
+#  value: eicarcom2.zip     # will not trigger the deploy step.
+
+steps:
+
+# build step
+- bash: |
+    echo "Pretend to build something"
+    ls -l $(MY_ARTIFACT_TO_SCAN)
+  displayName: 'Build the artifact'
+
+# scan step
+- template: rl-secure-scan-ado.yml
+  parameters:
+    REPORT_PATH: ${{ variables.REPORT_PATH }}
+    BUILD_PATH: ${{ variables.BUILD_PATH }}
+    MY_ARTIFACT_TO_SCAN: ${{ variables.MY_ARTIFACT_TO_SCAN }}
+    RLSECURE_ENCODED_LICENSE: ${{ variables.RLSECURE_ENCODED_LICENSE }}
+    RLSECURE_SITE_KEY: ${{ variables.RLSECURE_SITE_KEY }}
+    WITH_UPLOAD: true
+    VERBOSE: true
+
+# deploy step
+- bash: |
+    echo "Pretend to deploy; should only execute if the previous step completed without error"
+  displayName: 'Deploy the build'
