@@ -218,11 +218,12 @@ steps:
     {
         local - # auto restore the next line on function end
         set +e # we do our own error handling in this func
-        set -x
+        export RLSECURE_ENCODED_LICENSE
+        export RLSECURE_SITE_KEY
         # rl-store will be initialized if it is empty
         docker run --pull always --rm -u $(id -u):$(id -g) \
-            -e "RLSECURE_ENCODED_LICENSE=${RLSECURE_ENCODED_LICENSE}" \
-            -e "RLSECURE_SITE_KEY=${RLSECURE_SITE_KEY}" \
+            -e RLSECURE_ENCODED_LICENSE \
+            -e RLSECURE_SITE_KEY \
             ${PROXY_DATA} \
             -v "${B_PATH}/:/packages:ro" \
             -v "${R_PATH}/:/report" \
@@ -243,9 +244,11 @@ steps:
     {
         local - # auto restore the next line on function end
         set +e # we do our own error handling in this func
+        export RLSECURE_ENCODED_LICENSE
+        export RLSECURE_SITE_KEY
         docker run --pull always --rm -u $(id -u):$(id -g) \
-            -e "RLSECURE_ENCODED_LICENSE=${RLSECURE_ENCODED_LICENSE}" \
-            -e "RLSECURE_SITE_KEY=${RLSECURE_SITE_KEY}" \
+            -e RLSECURE_ENCODED_LICENSE \
+            -e RLSECURE_SITE_KEY \
             ${PROXY_DATA} \
             -v "${B_PATH}/:/packages:ro" \
             -v "${R_PATH}/:/report" \
