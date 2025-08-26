@@ -119,6 +119,14 @@ The following template parameters can be modified in the pipeline.
 | `RL_PROXY_USER` | No | An optional proxy user for authentication. | string |
 | `RL_PROXY_PASSWORD` | No | An optional proxy password for authentication. | string |
 
+The `REPORT_PATH` will now also hold the `RL-SAFE archive`.
+
+The [RL-SAFE archive](https://docs.secure.software/concepts/analysis-reports#rl-safe-archive)
+is a convenient way to get the full SAFE report and all other supported report formats for a software package in a single file.
+The archive can be freely shared and moved between different computers, and viewed without requiring a Spectra Assure product license.
+To open the archive and work with it, you need the [SAFE Viewer](https://docs.secure.software/safe-viewer) - a free, cross-platform tool developed by ReversingLabs.
+The RL-SAFE archive is named report.rl-safe and stored in `report-path`
+
 
 ## Examples
 
@@ -150,4 +158,3 @@ After saving your changes and running the pipeline again, the scan should fail. 
 - The official `reversinglabs/rl-scanner` Docker image [on Docker Hub](https://hub.docker.com/r/reversinglabs/rl-scanner)
 - [Supported file formats](https://docs.secure.software/concepts/filetypes) and [language coverage](https://docs.secure.software/concepts/language-coverage) for `rl-secure`
 - Introduction to [secure software release processes](https://www.reversinglabs.com/solutions/secure-software-release-processes) with ReversingLabs
-
