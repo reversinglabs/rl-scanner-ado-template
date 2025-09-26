@@ -62,6 +62,42 @@ steps:
     # RLSECURE_PROXY_USER: string, optional, default ''
     # RLSECURE_PROXY_PASSWORD: string, optional, default ''
     #
+    cleanup()
+    {
+        # suspicious chars are mainly `$><|&;
+        # if $ is allowed then $( should not be allowed (exept for passwords)
+
+        # are only passed via the environment
+        # RLSECURE_SITE_KEY: string, mandatory
+        # RLSECURE_ENCODED_LICENSE: string, mandatory
+
+        # for bool we can remove `$><|;&
+        RL_VERBOSE=${RL_VERBOSE//[\`\$><|;&]/}
+
+        # file or dir paths may not have `$><|;& so remove
+        BUILD_PATH=${BUILD_PATH//[\`\$><|;&]/}
+        REPORT_PATH=${REPORT_PATH//[\`\$><|;&]/}
+        MY_ARTIFACT_TO_SCAN=${MY_ARTIFACT_TO_SCAN//[\`\$><|;&]/}
+        RL_STORE=${RL_STORE//[\`\$><|;&]/}
+
+        # purl (name and version) may not have ` so remove
+        RL_PACKAGE_URL=${RL_PACKAGE_URL//[\`]/}
+        RL_DIFF_WITH=${RL_DIFF_WITH//[\`]/}
+
+        # the proxy params are passed explicitly via the environment
+
+        # a server is either ip4 or ip6 or dns; safe to remove $`><|;&
+        RLSECURE_PROXY_SERVER=${RLSECURE_PROXY_SERVER//[\`\$><|;&]/}
+
+        # a port is always numeric, remove all other chars
+        RLSECURE_PROXY_PORT=${RLSECURE_PROXY_PORT//[^0-9]/}
+
+        # a user may not contain: `$><|&;
+        RLSECURE_PROXY_USER=${RLSECURE_PROXY_USER//[\`\$><|;&]/}
+
+        # a pass is more difficult as it can contain almost anything
+        # in this case we can export it and forward it to docker via the environment
+    }
     isBool()
     {
         local value="$1"
@@ -199,19 +235,23 @@ steps:
         PROXY_DATA=""
         if [ ! -z "${RLSECURE_PROXY_SERVER}" ]
         then
-            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_SERVER=${RLSECURE_PROXY_SERVER}"
+            export RLSECURE_PROXY_SERVER
+            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_SERVER"
         fi
         if [ ! -z "${RLSECURE_PROXY_PORT}" ]
         then
-            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_PORT=${RLSECURE_PROXY_PORT}"
+            export RLSECURE_PROXY_PORT
+            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_PORT"
         fi
         if [ ! -z "${RLSECURE_PROXY_USER}" ]
         then
-            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_USER=${RLSECURE_PROXY_USER}"
+            export RLSECURE_PROXY_USER
+            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_USER"
         fi
         if [ ! -z "${RLSECURE_PROXY_PASSWORD}" ]
         then
-            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_PASSWORD=${RLSECURE_PROXY_PASSWORD}"
+            export RLSECURE_PROXY_PASSWORD
+            PROXY_DATA="${PROXY_DATA} -e RLSECURE_PROXY_PASSWORD"
         fi
     }
     scan_with_store()
@@ -232,7 +272,7 @@ steps:
                 rl-scan \
                     --replace \
                     --rl-store=/rl-store \
-                    --purl=${RL_PACKAGE_URL} \
+                    --purl="${RL_PACKAGE_URL}" \
                     --package-path=/packages/"$(MY_ARTIFACT_TO_SCAN)" \
                     --report-path=/report \
                     --report-format=all --pack-safe \
@@ -255,7 +295,7 @@ steps:
             reversinglabs/rl-scanner:latest \
                 rl-scan \
                     --replace \
-                    --package-path=/packages/"$(MY_ARTIFACT_TO_SCAN)" \
+                    --package-path="/packages/${MY_ARTIFACT_TO_SCAN}" \
                     --report-path=/report \
                     --report-format=all --pack-safe 1>1 2>2
         RR=$?
@@ -305,6 +345,7 @@ steps:
     }
     main()
     {
+        cleanup
         RL_VERBOSE=$(isBool "${RL_VERBOSE}" )
         if [ "${RL_VERBOSE}" != "false" ]
         then
@@ -330,7 +371,7 @@ steps:
         exit ${RR}
     }
     # set
-    main $*
+    main "$@"
 
   env: # pass secrets via env as is custom on Azure
     RLSECURE_ENCODED_LICENSE: ${{ parameters.RLSECURE_ENCODED_LICENSE }}
